@@ -1,0 +1,4 @@
+# TODO: a kustomization that
+#   - lists as resources the folder base/ (it has its own kustomization.yaml: read it) and your ingress.yaml
+#   - rewrites the image `beanie` to your ECR repository: images: [{name: beanie, newName: <account>.dkr.ecr.us-east-1.amazonaws.com/beanie-eks, newTag: "0.1.0"}]
+# Check it before you apply it:   kubectl kustomize k8s/

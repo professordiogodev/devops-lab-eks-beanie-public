@@ -1,0 +1,7 @@
+# TODO: an eksctl ClusterConfig (apiVersion eksctl.io/v1alpha5, kind ClusterConfig).
+#   metadata:  name: beanie-eks     region: us-east-1     tags: {lab: eks-beanie-public}
+#   vpc:       NO NAT gateway (a NAT gateway costs money every hour; nodes will use public subnets for this lab)
+#   managedNodeGroups: ONE group named "workers", instance type t3.medium, 2 nodes (min 2, max 3), 20 GB volumes,
+#                      tags {lab: eks-beanie-public}
+# Do not copy a cluster definition from the internet: read `eksctl create cluster --help` and
+# https://eksctl.io/usage/schema/ and write it.

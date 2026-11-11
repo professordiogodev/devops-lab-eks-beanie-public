@@ -1,0 +1,10 @@
+# PROVIDED. A folder becomes a kustomize "base" when it has a kustomization.yaml that lists its files.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - 00-namespace.yaml
+  - gateway.yaml
+  - menu.yaml
+  - notifications.yaml
+  - orders.yaml
+  - payments.yaml

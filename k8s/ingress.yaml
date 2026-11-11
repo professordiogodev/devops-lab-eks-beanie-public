@@ -1,0 +1,5 @@
+# TODO: an Ingress in the namespace beanie that sends the PUBLIC API to the gateway Service on port 8000.
+#   ingressClassName: nginx
+#   path /api (pathType Prefix) -> service gateway, port 8000
+# Think about what you do NOT want on the internet: the gateway also serves /metrics, /docs and /chaos.
+# Route only what customers need.
