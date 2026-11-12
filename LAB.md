@@ -2,9 +2,17 @@
 
 ## The situation
 
-Beanie runs beautifully on your laptop. The cafe owner wants to show it to the first customers on Monday, and "on my laptop" is not an address. You will put it on **Amazon EKS**, AWS's managed Kubernetes, and publish it behind a real load balancer.
+```text
+PRICE LIST - Beanie on Amazon EKS
+EKS control plane      about $0.10 per hour, whether or not anything runs on it
+Worker nodes           by the hour
+Load balancer          by the hour
+Everything above       REAL and BILLABLE, from the first minute
+```
 
-Two things make this lab different from the ones before. First, everything is **real and billable**: the EKS control plane costs about ten cents an hour whether or not anything runs on it, the nodes cost by the hour, and a load balancer costs by the hour. Second, **deleting it is harder than creating it**: a Kubernetes Service or Ingress creates an AWS load balancer that Kubernetes owns, and if you delete the cluster before the controller that created it, the load balancer survives, keeps billing, and blocks the deletion of the VPC. The order of teardown is part of the lesson, and part of the grade.
+Beanie runs beautifully on your laptop. The cafe owner wants to show it to the first customers on Monday, and "on my laptop" is not an address. You will put it on **Amazon EKS**, AWS's managed Kubernetes, behind a real load balancer.
+
+Read the price list twice, because the second thing that makes this lab different is that **deleting it is harder than creating it**. A Kubernetes Service or Ingress creates an AWS load balancer that Kubernetes owns. Delete the cluster before the controller that created it and the load balancer survives, keeps billing and blocks the deletion of the VPC. The order of teardown is part of the lesson, and part of the grade.
 
 > **Your mission**
 > - Define the cluster in a file (`cluster.yaml`) and create it with `eksctl`, without a NAT gateway
