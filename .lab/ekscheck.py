@@ -2,7 +2,14 @@
 import json, os, socket, subprocess, sys, tempfile, time, urllib.request, urllib.error
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 os.chdir(ROOT)
-C, R, LAB = "beanie-eks", "us-east-1", "eks-beanie-public"
+R, LAB = "us-east-1", "eks-beanie-public"
+try:
+    H = subprocess.check_output(["bash", ".lab/handle.sh"], stderr=subprocess.STDOUT, text=True).strip()
+except subprocess.CalledProcessError as e:
+    print(e.output.strip()); sys.exit(1)
+C = "beanie-eks-" + H
+REPO = C
+print("Your handle: %s (cluster %s)" % (H, C))
 passed = failed = 0
 
 
@@ -45,21 +52,22 @@ cl = (aws("eks", "describe-cluster", "--name", C) or {}).get("cluster")
 check("EKS cluster %s is ACTIVE" % C, bool(cl) and cl["status"] == "ACTIVE", "eksctl create cluster -f cluster.yaml")
 if not cl:
     finish()
-check("the cluster is tagged lab=%s" % LAB, cl.get("tags", {}).get("lab") == LAB)
+check("the cluster is tagged lab=%s and student=%s" % (LAB, H), cl.get("tags", {}).get("lab") == LAB and cl.get("tags", {}).get("student") == H)
 ngs = aws("eks", "list-nodegroups", "--cluster-name", C)["nodegroups"]
 check("one managed node group", len(ngs) == 1)
 ng = (aws("eks", "describe-nodegroup", "--cluster-name", C, "--nodegroup-name", ngs[0]) or {}).get("nodegroup", {}) if ngs else {}
 check("t3.medium, 2 nodes desired, at most 3", ng.get("instanceTypes") == ["t3.medium"] and ng.get("scalingConfig", {}).get("desiredSize") == 2 and ng.get("scalingConfig", {}).get("maxSize", 9) <= 3)
+check("the node group is tagged lab=%s and student=%s (the teardown proof finds the servers by those tags)" % (LAB, H), ng.get("tags", {}).get("lab") == LAB and ng.get("tags", {}).get("student") == H)
 vpc = cl["resourcesVpcConfig"]["vpcId"]
 nats = (aws("ec2", "describe-nat-gateways", "--filter", "Name=vpc-id,Values=" + vpc, "Name=state,Values=available,pending") or {}).get("NatGateways", [])
 check("no NAT gateway in the cluster's VPC (it would bill every hour)", len(nats) == 0)
 
 print("== The registry ==")
-rp = (aws("ecr", "describe-repositories", "--repository-names", "beanie-eks") or {}).get("repositories", [])
-check("ECR repository beanie-eks exists with scan on push", bool(rp) and rp[0]["imageScanningConfiguration"]["scanOnPush"])
+rp = (aws("ecr", "describe-repositories", "--repository-names", REPO) or {}).get("repositories", [])
+check("ECR repository %s exists with scan on push" % REPO, bool(rp) and rp[0]["imageScanningConfiguration"]["scanOnPush"])
 tags = (aws("ecr", "list-tags-for-resource", "--resource-arn", rp[0]["repositoryArn"]) or {}).get("tags", []) if rp else []
-check("the repository is tagged lab=%s" % LAB, any(t["Key"] == "lab" and t["Value"] == LAB for t in tags))
-imgs = (aws("ecr", "describe-images", "--repository-name", "beanie-eks") or {}).get("imageDetails", []) if rp else []
+check("the repository is tagged lab=%s and student=%s" % (LAB, H), any(t["Key"] == "lab" and t["Value"] == LAB for t in tags) and any(t["Key"] == "student" and t["Value"] == H for t in tags))
+imgs = (aws("ecr", "describe-images", "--repository-name", REPO) or {}).get("imageDetails", []) if rp else []
 check("image tag 0.1.0 is in it", any("0.1.0" in i.get("imageTags", []) for i in imgs), "docker build --platform linux/amd64 ... && docker push")
 
 print("== Beanie in the cluster ==")
@@ -82,7 +90,7 @@ def kj(*a):
 
 
 deps = (kj("get", "deployments", "-n", "beanie") or {}).get("items", [])
-want = "%s.dkr.ecr.%s.amazonaws.com/beanie-eks:0.1.0" % (acct, R)
+want = "%s.dkr.ecr.%s.amazonaws.com/%s:0.1.0" % (acct, R, REPO)
 check("five Deployments in the namespace beanie, all pulling %s" % want, len(deps) == 5 and all(d["spec"]["template"]["spec"]["containers"][0]["image"] == want for d in deps), "kubectl kustomize k8s/ | grep image:")
 end = time.time() + 180
 while time.time() < end and not (deps and all(d.get("status", {}).get("readyReplicas", 0) >= d["spec"]["replicas"] for d in (kj("get", "deployments", "-n", "beanie") or {}).get("items", []))):

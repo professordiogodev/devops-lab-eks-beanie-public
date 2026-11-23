@@ -2,8 +2,10 @@
 # Removes everything, in the right order. Takes 10-15 minutes. Run with: ./teardown.sh
 set -u
 cd "$(dirname "$0")"
+H=$(bash .lab/handle.sh) || exit 1
+echo "Your handle: $H (only the cluster beanie-eks-$H and its repository are touched)"
 aws sts get-caller-identity >/dev/null 2>&1 || { echo "No working AWS credentials." >&2; exit 1; }
-C=beanie-eks; R=us-east-1
+R=us-east-1; C=beanie-eks-$H
 if aws eks describe-cluster --name $C --region $R >/dev/null 2>&1; then
   KC=$(mktemp)
   aws eks update-kubeconfig --name $C --region $R --kubeconfig "$KC" >/dev/null
@@ -21,7 +23,7 @@ fi
 VPC=$(aws eks describe-cluster --name $C --region $R --query cluster.resourcesVpcConfig.vpcId --output text 2>/dev/null)
 for attempt in 1 2 3; do
   eksctl delete cluster --name $C --region $R --wait 2>&1 | tail -3
-  failed=$(aws cloudformation list-stacks --region $R --stack-status-filter DELETE_FAILED --query "StackSummaries[?starts_with(StackName, 'eksctl-$C-')].StackName" --output text)
+  failed=$(aws cloudformation list-stacks --region $R --stack-status-filter DELETE_FAILED --query "StackSummaries[?starts_with(StackName, 'eksctl-$C-cluster') || starts_with(StackName, 'eksctl-$C-nodegroup-')].StackName" --output text)
   if ! aws eks describe-cluster --name $C --region $R >/dev/null 2>&1 && [ -z "$failed" ]; then break; fi
   # some accounts have GuardDuty runtime monitoring: it adds a VPC endpoint to the cluster VPC, which blocks the VPC delete
   [ -z "$VPC" ] && VPC=$(aws ec2 describe-vpcs --region $R --filters Name=tag:alpha.eksctl.io/cluster-name,Values=$C --query 'Vpcs[0].VpcId' --output text)
@@ -31,6 +33,6 @@ for attempt in 1 2 3; do
   for st in $failed; do aws cloudformation delete-stack --region $R --stack-name $st; aws cloudformation wait stack-delete-complete --region $R --stack-name $st; done
 done
 # 3. the registry
-aws ecr delete-repository --repository-name beanie-eks --region $R --force >/dev/null 2>&1 && echo "deleted the ECR repository"
+aws ecr delete-repository --repository-name $C --region $R --force >/dev/null 2>&1 && echo "deleted the ECR repository"
 rm -rf beanie
 echo "Now run ./verify-teardown.sh"

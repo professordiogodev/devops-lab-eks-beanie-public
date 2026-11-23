@@ -33,7 +33,7 @@ Fork this repository, clone your fork and run:
 ./setup.sh
 ```
 
-It checks your tools and AWS login, clones Beanie into `beanie/` and prints the names to use (cluster `beanie-eks`, ECR repository `beanie-eks`). **It creates nothing in AWS.** Read `Dockerfile` (it is the same image as in the Kubernetes labs) and the manifests in `k8s/base/`: they are complete and have no ingress; the image is just called `beanie`.
+It checks your tools and AWS login, clones Beanie into `beanie/` and prints the names to use (cluster `beanie-eks-<handle>`, ECR repository `beanie-eks-<handle>`). Everyone on the course shares one AWS account, so every name and tag carries **your handle** (your IAM user name, shortened; `setup.sh` prints it). Wherever this page says `<handle>`, use that word, and never touch a resource that carries someone else's. **It creates nothing in AWS.** Read `Dockerfile` (it is the same image as in the Kubernetes labs) and the manifests in `k8s/base/`: they are complete and have no ingress; the image is just called `beanie`.
 
 > **Think** The cost clock starts in Part 1. Write down the time now. At the end of the lab, compare it with the time you finish teardown.
 
@@ -68,15 +68,15 @@ kubectl get pods -A
 
 ## Part 2 - The image, in ECR
 
-The nodes cannot pull an image from your laptop. Create a private repository with scanning on push, tag it `lab=eks-beanie-public`, and push the image.
+The nodes cannot pull an image from your laptop. Create a private repository with scanning on push, tag it `lab=eks-beanie-public` and `student=<handle>`, and push the image.
 
 ```bash
-aws ecr create-repository --repository-name beanie-eks --image-scanning-configuration scanOnPush=true \
-  --tags Key=lab,Value=eks-beanie-public
+aws ecr create-repository --repository-name beanie-eks-<handle> --image-scanning-configuration scanOnPush=true \
+  --tags Key=lab,Value=eks-beanie-public Key=student,Value=<handle>
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
 docker build --platform linux/amd64 -t beanie:0.1.0 .
-docker tag beanie:0.1.0 <account>.dkr.ecr.us-east-1.amazonaws.com/beanie-eks:0.1.0
-docker push <account>.dkr.ecr.us-east-1.amazonaws.com/beanie-eks:0.1.0
+docker tag beanie:0.1.0 <account>.dkr.ecr.us-east-1.amazonaws.com/beanie-eks-<handle>:0.1.0
+docker push <account>.dkr.ecr.us-east-1.amazonaws.com/beanie-eks-<handle>:0.1.0
 ```
 
 The `--platform linux/amd64` matters: on an Apple-silicon Mac Docker builds an arm64 image by default, the x86 nodes pull it happily and the container dies with `exec format error`.
